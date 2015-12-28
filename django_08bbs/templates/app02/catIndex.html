@@ -1,0 +1,349 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+    
+    <title>Signin Template for Bootstrap</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href='/static/css/bootstrap.min.css/' rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/font-awesome.min.css">
+
+    <!-- Custom styles for this template -->
+    <link href="/static/css/signin.css/" rel="stylesheet">
+    
+    <link rel='stylesheet' href='/static/css/common.css' />
+    <style>
+    .usercomment{
+    	width:500px; 
+    	height:200px; 
+    	background:#e5e5e6;
+    	overflow:auto;
+    	
+    }
+    .commenttextarea{
+		
+		width:300px;
+		font-size:10px;
+		
+	}
+	.usernameTime{
+		font-size:15px;
+		font-weight:bold;
+	}
+	.indent{text-indent: 2em;} 
+	.discusspanel{height:350px;overflow:auto;} 
+    
+    </style>
+    
+    
+
+  </head>
+
+  <body>
+
+    
+      <div class="container">
+
+        <nav class="navbar navbar-inverse navbar-static-top" role='navigation'>
+          
+            <div id="navbar" class="navbar-collapse collapse">
+              <ul class="nav navbar-nav navbar-left">
+                <li><a class="navbar-brand" href="/app02/catIndex/">Light News and Blog</a></li>
+              </ul>
+              
+              <ul class="nav navbar-nav navbar-right">
+              {% if login_flag %}
+              	<li><a class="btn btn-lg navbar-brand" role="button">{{username}}</a></li>
+              	<li><a href="/app02/logout/" class="btn btn-lg navbar-brand" role="button">Logout</a></li>
+              {% else %}
+              	<li><a href="/app02/login/" class="btn btn-lg navbar-brand" role="button">Login</a></li>
+              {% endif %}
+              	<li><a href="/app02/register/" class="btn btn-lg navbar-brand" role="button">Register</a></li>
+              </ul>
+                		  
+            </div>   
+        </nav>
+
+      </div>
+  
+
+
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-8 blog-main">
+          <div class="blog-post">
+				<div class='content-list' id='content-list'>
+
+					{% for item in data %}
+						<div class='item'>
+							<div class="part1">								
+								<a href='{{item.url}}'>{{item.title}}</a>
+							</div>
+							<div class="part2">								
+								{{item.summary|safe}}
+							</div>
+							<div class="part3">	
+								<a href='#' onclick='Favor(this,{{item.id}});'>Like{{item.favor_count}}</a>						
+								<a href='#' id='reply' class='reply' onclick='Reply(this,{{item.id}});'>Comment{{item.reply_count}}</a>
+								<span>{{item.create_date|date:'Y-m-d H:i:s'}}</span>
+							</div>
+							
+							
+							<div has-input='0' class="part4 hide">
+								<!-- 点击一次，先去数据库取数据，
+								然后清空展示框的内容，再将数据each到显示框中。因为可能有其他用户也进行评论，
+								所以每次显示数据之前就清空一下咯 -->
+								 
+								<div class='replys usercomment' id='commentarea'>历史评论</div>
+								<div class='inputs'>
+									
+									<!-- 下面这个东西是一个文本输入框来的 -->
+									<textarea class='commenttextarea' rows=4 cols=40 placeholder='请输入评论内容' autofocus id='cleartextarea'></textarea>
+									<!-- 请记住，{{item.id}}指的是这条新闻的id啊 -->
+									<input class='btn btn-primary' type='button' value='Submit' onclick='Submit(this,{{item.id}});'/>
+								</div>
+									
+								
+							</div>
+						</div>
+					{% endfor %}
+				</div>
+          </div><!-- /.blog-post -->
+
+          <nav>
+            <ul class="pager">
+              <li><a href="#">Previous</a></li>
+              <li><a href="#">Next</a></li>
+            </ul>
+          </nav>
+		</div><!-- end from blogmain -->
+        
+
+        
+
+		<div class="col-sm-3 col-sm-offset-1 blog-sidebar"> 
+			<div id='chatpool' class="panel panel-primary">
+	  				<div class="panel-heading"><h3 class="panel-title">Discussion Area</h3></div>
+	  				<div class="panel-body discusspanel" id='groupdiscuss'> </div>	
+	  		</div>	
+	  		<textarea id='message' class='text' placeholder='请输入评论内容'></textarea>
+			<input type='button' class='btn btn-primary' onclick='SendMsg();' value='Submit'/>
+		
+		</div><!-- /.blog-sidebar -->					
+      </div><!-- /.row -->
+	</div><!-- /.container -->	
+		
+		
+		
+      <footer>
+        <p class="pull-right"><a href="#">Back to top</a></p>
+      </footer>
+	  
+	
+	
+	<!-- 遮罩层，加载层 -->
+	<div id='shade' class='shade hide'></div>
+	<div id='loading' class='loading hide'></div>	
+
+	<script src='/static/jquery/jquery-1.8.2.min.js'></script>
+	<script src='/static/jquery/jquery.cookie.js'></script>		
+
+	<script type="text/javascript">
+	function Favor(doc,id){
+		$.ajax({
+			url:'/app02/addfavor/',
+			data:{nid:id},
+			type:'POST',
+			success:function(callback){
+				var obj = jQuery.parseJSON(callback);
+				console.log(obj);
+				if(obj.status == 1){
+					var temp = 'Like'+ obj.data;
+					$(doc).text(temp);						
+				}else{
+					alert('Please Login');
+				}
+			}
+		});
+		
+		
+	}
+
+		//这是历史回复区域的函数
+		function Reply(doc,id){
+			//去数据库把历史记录取出来
+			
+			$.ajax({
+				url:'/app02/getreply/',
+				type:'POST',
+				//这是我要传给后台的数据，告诉后台，我需要取这个id里面所关联的评论内容
+				data:{nid:id},
+				//该处用来接收的，假如执行成功的话，那么从后台返回来的数据，这里负责接收
+				//callback 就是 http返回来的数据
+				success:function(callback){
+					console.log(callback);
+					//取到数据后，然后进行反序列化
+					var obj = jQuery.parseJSON(callback);
+					//点击一次，先去数据库取数据，然后清空展示框的内容，再将数据each到显示框中。因为可能有其他用户也进行评论，
+					//所以每次显示数据之前就清空一下咯
+					//$(doc).parent().next().find('.replys').empty();
+					$('#commentarea').empty();
+					//清空之后就将取到的内容再放上去回复区
+					//each（对象或数值也就是从数据库中取到的数据，回调函数专门用来自定义去怎样处理前面的对象
+					
+					$.each(obj,function(k,v){
+						//$(doc).parent().next().first()
+						temp = '<div class="usernameTime">'+v.user__username+'----Post Time : '+v.create_date+'</div><div class="indent">'+v.content +'</div>';
+						
+						//$(doc).parent().next().find('.replys').append(temp);
+						$('#commentarea').append(temp);
+					});
+					var height = document.getElementById('commentarea').scrollHeight;
+					$('#commentarea').scrollTop(height);
+				}
+			});
+			//$(content).removeClass('hide');
+			//第一次点击去掉，第二次加上，来回循环,parent().next()其实指的就是这个回复区域
+			$(doc).parent().next().toggleClass('hide');
+		}
+			
+		function Submit(doc,id){
+			//通过this来获取到当前的标签是<input>，然后prev()表示是上一个标签，然后val()表示这个标签的内容
+			var value = $('#cleartextarea').val();
+			if(value!=''){
+			//获取到值之后将文本框给置空
+				$('#cleartextarea').val('');
+				
+				$('#shade,loading').removeClass('hide');
+				
+				$.ajax({
+					url:'/app02/submitreply/',
+					type:'POST',
+					//因为是要将内容写入数据库，所以顺便将评论的内容给传上去了
+					data:{nid:id,data:value},
+					success:function(callback){
+						var obj = jQuery.parseJSON(callback);
+						if(obj.status == 1){
+							//将数据append到回复列表
+							temp = '<div class="usernameTime">'+obj.data.user__username+'----Post Time : '+obj.data.create_date+'</div><div class="indent">'+obj.data.content +'</div>';
+							//$(doc).parent().prev().append(temp);
+							$('#commentarea').append(temp);
+							count = 'Comment' + obj.data.reply_count;
+							//find到这个样式后，将里面的内容全部替换掉
+							//$(doc).parent().parent().prev().find('.reply').text(count);
+							$('reply').text(count);
+							
+						}else{
+							alert('Please Login');
+						}
+						var height = document.getElementById('commentarea').scrollHeight;
+						$('#commentarea').scrollTop(height);
+						$('#shade,loading').addClass('hide');
+					}
+				});
+			}else{alert('Content can not be empty');}
+		}
+	
+		
+		function SendMsg(){
+			var value = $('#message').val();
+			if(value!=''){
+			//clear textarea
+			$('#message').val('');
+			$.ajax({
+				url:'/app02/submitchat/',
+				data:{data:value},
+				type:'POST',
+				success:function(callback){
+					var obj = jQuery.parseJSON(callback);
+					if(obj.status == 1){
+						var now = obj.data.create_date;
+						var name = obj.data.username;
+						var template = '<div><div>'+name+'---'+now+'</div><div class="indent">'+value+'</div></div>';
+						$('#groupdiscuss').append(template);
+						//获取聊天记录在聊天记录表中的id是多少。
+						window.last_id = obj.data.id;
+						//获取聊天池的高度，然后保持滑轮在最下面，这点在这个版本中还没使用
+						var height = document.getElementById('groupdiscuss').scrollHeight;
+						$('#groupdiscuss').scrollTop(height);						
+					}else{
+						alert('Please Login');
+					}
+				}
+			});
+			}else{alert('Content can not be empty');}
+		}
+		
+		//每隔2s钟就执行一下前面的这个函数
+		setInterval('going()',2000);
+		// need a global varies
+		window.is_first = true;
+		
+		function going(){
+			//每个用户第一次登录都执行这个，后面都执行下面的else
+			if(window.is_first){
+				$.ajax({
+					url:'/app02/getchat/',
+					type:'POST',
+					
+					success:function(callback){
+						var obj = jQuery.parseJSON(callback);
+						//里面的v就是里面的每一个字典，返回来的是10个字典的列表
+						//将最后一条新闻的id给last_id
+		
+						window.last_id = obj[0].id;
+						console.log(obj);
+						obj = obj.reverse();
+						$.each(obj,function(k,v){
+							var now = v.create_date;
+							var name = v.user__username;
+							var value = v.content;
+							var template = '<div><div>'+name+'--'+now+'</div><div class="indent">'+value+'</div></div>';
+							$('#groupdiscuss').append(template);
+						});
+						window.is_first = false;
+						var height = document.getElementById('groupdiscuss').scrollHeight;
+						$('#groupdiscuss').scrollTop(height);
+					}
+				});	
+			}else{
+				$.ajax({
+					url:'/app02/getchat2/',
+					type:'POST',
+					data:{lastid:window.last_id},
+					
+					success:function(callback){
+						var obj = jQuery.parseJSON(callback);
+						console.log(obj);
+						console.log(window.last_id);
+						if(obj.length>0){
+							window.last_id = obj[obj.length-1].id;
+							$.each(obj,function(k,v){
+								var now = v.create_date;
+								var name = v.user__username;
+								var value = v.content;
+								var template = '<div><div>'+name+'--'+now+'</div><div class="indent">'+value+'</div></div>';
+								$('#groupdiscuss').append(template);
+							});
+							var height = document.getElementById('groupdiscuss').scrollHeight;
+							$('#groupdiscuss').scrollTop(height);
+						}
+					}
+				});
+			}
+		}
+		
+
+	
+	</script>
+    
+  
+  </body>
+</html>
